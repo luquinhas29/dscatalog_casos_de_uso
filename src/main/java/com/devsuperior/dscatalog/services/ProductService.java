@@ -1,6 +1,7 @@
 package com.devsuperior.dscatalog.services;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,10 +29,10 @@ public class ProductService {
 
 	@Autowired
 	private ProductRepository repository;
-	
+
 	@Autowired
 	private CategoryRepository categoryRepository;
-	
+
 	@Transactional(readOnly = true)
 	public Page<ProductDTO> findAllPaged(Pageable pageable) {
 		Page<Product> list = repository.findAll(pageable);
@@ -60,25 +61,23 @@ public class ProductService {
 			copyDtoToEntity(dto, entity);
 			entity = repository.save(entity);
 			return new ProductDTO(entity);
-		}
-		catch (EntityNotFoundException e) {
+		} catch (EntityNotFoundException e) {
 			throw new ResourceNotFoundException("Id not found " + id);
-		}		
+		}
 	}
 
-    @Transactional(propagation = Propagation.SUPPORTS)
-    public void delete(Long id) {
-    	if (!repository.existsById(id)) {
-    		throw new ResourceNotFoundException("Recurso não encontrado");
-    	}
-    	try {
-            repository.deleteById(id);    		
-    	}
-        catch (DataIntegrityViolationException e) {
-            throw new DatabaseException("Falha de integridade referencial");
-        }
-    }
-	
+	@Transactional(propagation = Propagation.SUPPORTS)
+	public void delete(Long id) {
+		if (!repository.existsById(id)) {
+			throw new ResourceNotFoundException("Recurso não encontrado");
+		}
+		try {
+			repository.deleteById(id);
+		} catch (DataIntegrityViolationException e) {
+			throw new DatabaseException("Falha de integridade referencial");
+		}
+	}
+
 	private void copyDtoToEntity(ProductDTO dto, Product entity) {
 
 		entity.setName(dto.getName());
@@ -86,16 +85,20 @@ public class ProductService {
 		entity.setDate(dto.getDate());
 		entity.setImgUrl(dto.getImgUrl());
 		entity.setPrice(dto.getPrice());
-		
+
 		entity.getCategories().clear();
 		for (CategoryDTO catDto : dto.getCategories()) {
 			Category category = categoryRepository.getReferenceById(catDto.getId());
-			entity.getCategories().add(category);			
+			entity.getCategories().add(category);
 		}
 	}
 
 	@Transactional(readOnly = true)
-	public Page<ProductProjection> testQuery(Pageable pageable) {
-		return repository.searchProducts(Arrays.asList(1L,3L), "", pageable);
-	}	
+	public Page<ProductProjection> findAllPaged(String name, String categoryId, Pageable pageable) {
+		List<Long> categoryIds = Arrays.asList();
+		if (!"0".equals(categoryId)) {
+			categoryIds = Arrays.asList(categoryId.split(",")).stream().map(Long::parseLong).toList();
+		}
+		return repository.searchProducts(categoryIds, name, pageable);
+	}
 }
